@@ -2,10 +2,19 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('cloudinary').v2;
 
+const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+const apiKey = (process.env.CLOUDINARY_API_KEY || '').trim();
+const apiSecret = (process.env.CLOUDINARY_API_SECRET || '').trim();
+
+// Diagnostic temporaire (à supprimer quand l'upload marche)
+console.log(
+  `☁️ Cloudinary | cloud=${cloudName} | key=${apiKey} | secret: ${apiSecret.length} caractères, début "${apiSecret.slice(0, 2)}", fin "${apiSecret.slice(-2)}"`
+);
+
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: cloudName,
+  api_key: apiKey,
+  api_secret: apiSecret,
 });
 
 const storage = new CloudinaryStorage({
