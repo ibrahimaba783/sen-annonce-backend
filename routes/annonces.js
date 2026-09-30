@@ -114,7 +114,7 @@ router.post('/:id/vue', async (req, res) => {
 router.post('/', protect, vendeur, upload.array('images', 5), async (req, res) => {
   try {
     const { titre, description, prix, categorie, ville } = req.body;
-    const images = req.files ? req.files.map((f) => `/uploads/${f.filename}`) : [];
+    const images = req.files ? req.files.map((f) => f.path) : [];
 
     const annonce = await Annonce.create({
       titre,
@@ -159,7 +159,7 @@ router.put('/:id', protect, upload.array('images', 5), async (req, res) => {
     if (ville) annonce.ville = ville;
 
     if (req.files && req.files.length > 0) {
-      const nouvellesImages = req.files.map((f) => `/uploads/${f.filename}`);
+      const nouvellesImages = req.files.map((f) => f.path);
       annonce.images = nouvellesImages;
     }
 

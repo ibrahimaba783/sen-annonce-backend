@@ -45,6 +45,25 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route introuvable' });
 });
 
+// Gestion globale des erreurs (multer, Cloudinary, etc.)
+app.use((err, req, res, next) => {
+  console.error('❌ Erreur :', err);
+  if (res.headersSent) return next(err);
+
+  let status = err.status || err.http_code || 500;
+  let message = err.message || 'Erreur serveur';
+
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    status = 400;
+    message = 'Photo trop lourde (5 Mo maximum par photo)';
+  } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+    status = 400;
+    message = 'Trop de photos (5 maximum)';
+  }
+
+  res.status(status >= 400 && status < 600 ? status : 500).json({ message });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Serveur lancé sur le port ${PORT}`);

@@ -1,3 +1,4 @@
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
@@ -17,15 +18,22 @@ router.post('/inscription', async (req, res) => {
       return res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis' });
     }
 
-    // Role doit être 'client' ou 'vendeur'. Jamais 'admin' depuis l'inscription.
     const roleFinal = (role === 'vendeur' || role === 'prestataire') ? 'vendeur' : 'client';
 
     const existe = await User.findOne({ email: email.toLowerCase() });
+
     if (existe) {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
-    const user = await User.create({ nom, prenom, email, motDePasse, telephone, role: roleFinal });
+    const user = await User.create({
+      nom,
+      prenom,
+      email,
+      motDePasse,
+      telephone,
+      role: roleFinal
+    });
 
     res.status(201).json({
       _id: user._id,
@@ -38,7 +46,12 @@ router.post('/inscription', async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    console.error('❌ Erreur inscription :', err);
+
+    res.status(500).json({
+      message: 'Erreur serveur',
+      error: err.message
+    });
   }
 });
 
@@ -47,8 +60,17 @@ router.post('/connexion', async (req, res) => {
     const { email, identifiant, motDePasse } = req.body;
     const searchVal = (identifiant || email || '').trim();
 
+    console.log('\n================ CONNEXION ================');
+    console.log('📥 Identifiant reçu :', searchVal);
+    console.log('🔐 Mot de passe reçu :', motDePasse ? 'OUI' : 'NON');
+
     if (!searchVal || !motDePasse) {
-      return res.status(400).json({ message: 'Veuillez saisir votre identifiant et mot de passe' });
+      console.log('❌ Champs de connexion manquants');
+      console.log('===========================================\n');
+
+      return res.status(400).json({
+        message: 'Veuillez saisir votre identifiant et mot de passe'
+      });
     }
 
     const user = await User.findOne({
@@ -58,17 +80,54 @@ router.post('/connexion', async (req, res) => {
       ]
     });
 
+    console.log(
+      '👤 Utilisateur trouvé :',
+      user ? `OUI → ${user.email} (${user.role})` : 'NON'
+    );
+
     if (!user) {
-      return res.status(401).json({ message: 'Email/Téléphone ou mot de passe incorrect' });
+      console.log('❌ Aucun utilisateur correspondant dans MongoDB Atlas');
+      console.log('===========================================\n');
+
+      return res.status(401).json({
+        message: 'Email/Téléphone ou mot de passe incorrect'
+      });
     }
+
+    console.log('🆔 ID utilisateur :', user._id.toString());
+    console.log('👤 Nom :', user.prenom, user.nom);
+    console.log('📧 Email :', user.email);
+    console.log('📱 Téléphone :', user.telephone || 'Aucun');
+    console.log('🎭 Rôle :', user.role);
+    console.log('🚫 Compte bloqué :', user.isBlocked ? 'OUI' : 'NON');
+
     if (user.isBlocked) {
-      return res.status(403).json({ message: 'Ce compte a été bloqué par un administrateur' });
+      console.log('❌ Connexion refusée : compte bloqué');
+      console.log('===========================================\n');
+
+      return res.status(403).json({
+        message: 'Ce compte a été bloqué par un administrateur'
+      });
     }
 
     const match = await user.comparePassword(motDePasse);
+
+    console.log(
+      '🔑 Mot de passe correct :',
+      match ? 'OUI' : 'NON'
+    );
+
     if (!match) {
-      return res.status(401).json({ message: 'Email/Téléphone ou mot de passe incorrect' });
+      console.log('❌ Mot de passe incorrect');
+      console.log('===========================================\n');
+
+      return res.status(401).json({
+        message: 'Email/Téléphone ou mot de passe incorrect'
+      });
     }
+
+    console.log('✅ CONNEXION RÉUSSIE');
+    console.log('===========================================\n');
 
     res.json({
       _id: user._id,
@@ -82,17 +141,32 @@ router.post('/connexion', async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    console.error('🔥 ERREUR CONNEXION :', err);
+
+    res.status(500).json({
+      message: 'Erreur serveur',
+      error: err.message
+    });
   }
 });
 
 router.get('/vendeur/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('nom prenom photo telephone isVerified createdAt');
-    if (!user) return res.status(404).json({ message: 'Vendeur introuvable' });
+    const user = await User.findById(req.params.id)
+      .select('nom prenom photo telephone isVerified createdAt');
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'Vendeur introuvable'
+      });
+    }
+
     res.json(user);
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({
+      message: 'Erreur serveur',
+      error: err.message
+    });
   }
 });
 
@@ -108,11 +182,13 @@ router.put('/profil', protect, upload.single('photo'), async (req, res) => {
     if (nom) user.nom = nom;
     if (prenom) user.prenom = prenom;
     if (telephone) user.telephone = telephone;
+
     if (req.file) {
-      user.photo = `/uploads/${req.file.filename}`;
+      user.photo = req.file.path;
     }
 
     await user.save();
+
     res.json({
       _id: user._id,
       nom: user.nom,
@@ -123,7 +199,12 @@ router.put('/profil', protect, upload.single('photo'), async (req, res) => {
       role: user.role,
     });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    console.error('❌ Erreur modification profil :', err);
+
+    res.status(500).json({
+      message: 'Erreur serveur',
+      error: err.message
+    });
   }
 });
 
@@ -131,8 +212,11 @@ router.put('/profil', protect, upload.single('photo'), async (req, res) => {
 router.delete('/profil/photo', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
+
     user.photo = '';
+
     await user.save();
+
     res.json({
       _id: user._id,
       nom: user.nom,
@@ -143,7 +227,12 @@ router.delete('/profil/photo', protect, async (req, res) => {
       role: user.role,
     });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    console.error('❌ Erreur suppression photo :', err);
+
+    res.status(500).json({
+      message: 'Erreur serveur',
+      error: err.message
+    });
   }
 });
 
@@ -151,21 +240,37 @@ router.delete('/profil/photo', protect, async (req, res) => {
 router.put('/changement-mot-de-passe', protect, async (req, res) => {
   try {
     const { ancienMotDePasse, nouveauMotDePasse } = req.body;
+
     if (!ancienMotDePasse || !nouveauMotDePasse) {
-      return res.status(400).json({ message: 'Tous les champs sont requis' });
+      return res.status(400).json({
+        message: 'Tous les champs sont requis'
+      });
     }
 
     const user = await User.findById(req.user._id);
+
     const match = await user.comparePassword(ancienMotDePasse);
+
     if (!match) {
-      return res.status(400).json({ message: 'L\'ancien mot de passe est incorrect' });
+      return res.status(400).json({
+        message: 'L\'ancien mot de passe est incorrect'
+      });
     }
 
     user.motDePasse = nouveauMotDePasse;
+
     await user.save();
-    res.json({ message: 'Mot de passe modifié avec succès' });
+
+    res.json({
+      message: 'Mot de passe modifié avec succès'
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    console.error('❌ Erreur changement mot de passe :', err);
+
+    res.status(500).json({
+      message: 'Erreur serveur',
+      error: err.message
+    });
   }
 });
 
@@ -173,19 +278,39 @@ router.put('/changement-mot-de-passe', protect, async (req, res) => {
 router.post('/mot-de-passe-oublie', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Veuillez saisir votre email' });
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      // Pour des raisons de sécurité, répondre OK même si l'email n'existe pas
-      return res.json({ message: 'Si ce compte existe, un lien de réinitialisation a été envoyé.' });
+    if (!email) {
+      return res.status(400).json({
+        message: 'Veuillez saisir votre email'
+      });
     }
 
-    // Réinitialisation simulée / lien généré
-    res.json({ message: 'Si ce compte existe, un lien de réinitialisation a été envoyé.' });
+    const user = await User.findOne({
+      email: email.toLowerCase()
+    });
+
+    if (!user) {
+      return res.json({
+        message: 'Si ce compte existe, un lien de réinitialisation a été envoyé.'
+      });
+    }
+
+    res.json({
+      message: 'Si ce compte existe, un lien de réinitialisation a été envoyé.'
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  console.error('\n========== ERREUR CRÉATION ANNONCE ==========');
+  console.error('❌ Message :', err.message);
+  console.error('❌ Nom :', err.name);
+  console.error('❌ Stack :', err.stack);
+  console.error('=============================================\n');
+
+  res.status(500).json({
+    message: 'Erreur serveur',
+    error: err.message
+    });
   }
 });
 
 module.exports = router;
+
