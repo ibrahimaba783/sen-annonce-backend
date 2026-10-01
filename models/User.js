@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
     favoris: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Annonce' }],
+    googleId: { type: String, unique: true, sparse: true },
+    facebookId: { type: String, unique: true, sparse: true },
   },
   { timestamps: true }
 );

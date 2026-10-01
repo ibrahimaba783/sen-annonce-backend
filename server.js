@@ -32,6 +32,7 @@ app.get('/', (req, res) => {
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth', require('./routes/social'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/annonces', require('./routes/annonces'));
 app.use('/api/messages', require('./routes/messages'));
