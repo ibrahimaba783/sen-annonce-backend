@@ -3,11 +3,13 @@ const User = require('./models/User');
 
 const defaultCategories = [
   { nom: 'Immobilier', icone: '🏠', description: 'Maisons, appartements, terrains, meublés' },
-  { nom: 'Véhicules', icone: '🚗', description: 'Voitures, motos, pièces détachées, location' },
-  { nom: 'Électronique', icone: '📱', description: 'Smartphones, TV, son, électroménager' },
-  { nom: 'Maison', icone: '🏡', description: 'Meubles, décoration, jardin' },
-  { nom: 'Emplois', icone: '💼', description: 'Offres d\'emploi, stages, formations' },
-  { nom: 'Autres', icone: '📦', description: 'Autres produits et services' },
+  { nom: 'Automobile', icone: '🚗', description: 'Voitures, motos, pièces détachées, location' },
+  { nom: 'Emploi', icone: '💼', description: 'Offres d\'emploi, stages, formations' },
+  { nom: 'Téléphones', icone: '📱', description: 'Smartphones, téléphones, accessoires' },
+  { nom: 'Informatique', icone: '💻', description: 'Ordinateurs, PC portables, composants, logiciels' },
+  { nom: 'Mode', icone: '👗', description: 'Vêtements, chaussures, accessoires de mode' },
+  { nom: 'Services', icone: '🛠️', description: 'Prestations de services, dépannage, cours' },
+  { nom: 'Électronique', icone: '📺', description: 'TV, son, électroménager, matériel électronique' },
 ];
 
 const seedCategories = async () => {

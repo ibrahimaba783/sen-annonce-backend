@@ -1,4 +1,3 @@
-
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
@@ -6,10 +5,32 @@ const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+};
+
+// Envoi de l'email de réinitialisation (config via variables d'environnement)
+const sendResetEmail = async (to, link) => {
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: port === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject: 'SenAnnonce : réinitialisation de votre mot de passe',
+    text: `Pour choisir un nouveau mot de passe, ouvrez ce lien (valable 1 heure) : ${link}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet email.`,
+    html: `<p>Pour choisir un nouveau mot de passe, cliquez ici (lien valable 1 heure) :</p>
+           <p><a href="${link}">${link}</a></p>
+           <p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>`,
+  });
 };
 
 router.post('/inscription', async (req, res) => {
@@ -278,39 +299,72 @@ router.put('/changement-mot-de-passe', protect, async (req, res) => {
 
 // POST Mot de passe oublié
 router.post('/mot-de-passe-oublie', async (req, res) => {
+  const reponse = { message: 'Si ce compte existe, un lien de réinitialisation a été envoyé.' };
+
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({
-        message: 'Veuillez saisir votre email'
-      });
+      return res.status(400).json({ message: 'Veuillez saisir votre email' });
     }
 
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user && !user.isBlocked) {
+      const token = crypto.randomBytes(32).toString('hex');
+      user.resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+      user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 heure
+      await user.save();
+
+      const link = `${process.env.FRONTEND_URL}/reinitialiser-mot-de-passe/${token}`;
+
+      try {
+        await sendResetEmail(user.email, link);
+      } catch (mailErr) {
+        console.error('❌ Envoi email impossible :', mailErr.message);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+      }
+    }
+
+    // Même réponse dans tous les cas : on ne révèle pas si le compte existe
+    res.json(reponse);
+  } catch (err) {
+    console.error('❌ Erreur mot de passe oublié :', err.message);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// POST Réinitialisation avec le jeton reçu par email
+router.post('/reinitialiser-mot-de-passe/:token', async (req, res) => {
+  try {
+    const { nouveauMotDePasse } = req.body;
+
+    if (!nouveauMotDePasse || nouveauMotDePasse.length < 6) {
+      return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères' });
+    }
+
+    const hash = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
     const user = await User.findOne({
-      email: email.toLowerCase()
+      resetPasswordToken: hash,
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.json({
-        message: 'Si ce compte existe, un lien de réinitialisation a été envoyé.'
-      });
+      return res.status(400).json({ message: 'Lien invalide ou expiré' });
     }
 
-    res.json({
-      message: 'Si ce compte existe, un lien de réinitialisation a été envoyé.'
-    });
-  } catch (err) {
-  console.error('\n========== ERREUR CRÉATION ANNONCE ==========');
-  console.error('❌ Message :', err.message);
-  console.error('❌ Nom :', err.name);
-  console.error('❌ Stack :', err.stack);
-  console.error('=============================================\n');
+    user.motDePasse = nouveauMotDePasse; // hashé automatiquement par le pre('save')
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
 
-  res.status(500).json({
-    message: 'Erreur serveur',
-    error: err.message
-    });
+    res.json({ message: 'Mot de passe modifié avec succès' });
+  } catch (err) {
+    console.error('❌ Erreur réinitialisation :', err.message);
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
@@ -430,4 +484,3 @@ router.post('/facebook', async (req, res) => {
 });
 
 module.exports = router;
-

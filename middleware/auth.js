@@ -29,18 +29,12 @@ const admin = (req, res, next) => {
   return res.status(403).json({ message: 'Accès réservé aux administrateurs' });
 };
 
-// Vendeur ou Admin uniquement
+// Middleware d'autorisation pour publication (tout utilisateur connecté peut publier)
 const vendeur = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Veuillez vous connecter pour continuer' });
   }
-  if (req.user.role === 'client') {
-    return res.status(403).json({ message: 'Les comptes clients ne peuvent pas publier ou gérer des annonces. Veuillez utiliser un compte vendeur.' });
-  }
-  if (['vendeur', 'prestataire', 'admin'].includes(req.user.role)) {
-    return next();
-  }
-  return res.status(403).json({ message: 'Accès réservé aux vendeurs' });
+  return next();
 };
 
 module.exports = { protect, admin, vendeur };

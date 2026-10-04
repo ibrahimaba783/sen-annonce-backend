@@ -11,12 +11,6 @@ const User = require('./models/User');
 
 // Connexion MongoDB & Initialisation du Seeder
 connectDB().then(async () => {
-  try {
-    // Migration: s'assurer que tous les anciens utilisateurs ont un rôle par défaut ('client')
-    await User.updateMany({ $or: [{ role: { $exists: false } }, { role: null }] }, { role: 'client' });
-  } catch (e) {
-    console.error('Erreur migration rôles:', e.message);
-  }
   seedCategories();
 });
 
@@ -37,8 +31,6 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/annonces', require('./routes/annonces'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/cart', require('./routes/cart'));
-app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
 
 // Gestion des erreurs 404

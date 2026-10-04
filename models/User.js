@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema(
     favoris: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Annonce' }],
     googleId: { type: String, unique: true, sparse: true },
     facebookId: { type: String, unique: true, sparse: true },
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
   },
   { timestamps: true }
 );
